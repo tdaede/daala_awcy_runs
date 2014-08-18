@@ -130,7 +130,7 @@ examples_dump_video_SOURCES = examples/dump_video.c
 examples_dump_video_CFLAGS = $(OGG_CFLAGS)
 examples_dump_video_LDADD = src/libdaalabase.la src/libdaaladec.la  $(OGG_LIBS)
 
-examples_encoder_example_SOURCES = examples/encoder_example.c
+examples_encoder_example_SOURCES = examples/encoder_example.c examples/prefilter.c
 examples_encoder_example_CFLAGS = $(OGG_CFLAGS)
 examples_encoder_example_LDADD = src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) $(LIBM)
 

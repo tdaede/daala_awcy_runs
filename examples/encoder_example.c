@@ -23,6 +23,8 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
+#define ENABLE_PREFILTER 0
+
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
@@ -35,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <getopt.h>
 #include "../src/logging.h"
 #include "daala/daalaenc.h"
+#include "prefilter.h"
 #if defined(_WIN32)
 # include <fcntl.h>
 # include <io.h>
@@ -66,7 +69,11 @@ struct av_input{
   char video_chroma_type[16];
   int video_nplanes;
   daala_plane_info video_plane_info[OD_NPLANES_MAX];
-  od_img video_img;
+  od_img video_buf1;
+  od_img video_buf2;
+  od_img video_filt;
+  od_img *video_img;
+  od_img *video_img_prev;
   int video_cur_img;
 };
 
@@ -257,7 +264,7 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
      avin->video_chroma_type);
     exit(1);
   }
-  img = &avin->video_img;
+  img = avin->video_img;
   img->nplanes = avin->video_nplanes;
   img->width = avin->video_pic_w;
   img->height = avin->video_pic_h;
@@ -309,6 +316,13 @@ static void id_file(av_input *avin, const char *file) {
   }
 }
 
+static od_img *get_next_video_img(av_input *avin) {
+    od_img *r = avin->video_img;
+    avin->video_img = avin->video_img == &avin->video_buf1 ? &avin->video_buf2 : &avin->video_buf1;
+    avin->video_img_prev = r;
+    return avin->video_img;
+  }
+
 int fetch_and_process_video(av_input *avin, ogg_page *page,
  ogg_stream_state *vo, daala_enc_ctx *dd, int video_ready,
  int *limit) {
@@ -339,7 +353,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
         }
       }
       /*Read the frame data.*/
-      img = &avin->video_img;
+      img = get_next_video_img(avin);
       for (pli = 0; pli < img->nplanes; pli++) {
         od_img_plane *iplane;
         size_t plane_sz;
@@ -355,6 +369,20 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
           exit(1);
         }
       }
+
+#if ENABLE_PREFILTER
+      pre_filter(avin->video_filt.planes[0].data,
+                 avin->video_filt.planes[1].data,
+                 avin->video_filt.planes[2].data,
+                 avin->video_img->planes[0].data,
+                 avin->video_img->planes[1].data,
+                 avin->video_img->planes[2].data,
+                 avin->video_img_prev->planes[0].data,
+                 avin->video_img_prev->planes[1].data,
+                 avin->video_img_prev->planes[2].data,
+                 avin->video_pic_w, avin->video_pic_h, 256);
+#endif
+
       if (limit) {
         last = (*limit) == 0;
         (*limit)--;
@@ -369,7 +397,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
       ogg_stream_packetin(vo, &op);
     }
     /*Submit the current frame for encoding.*/
-    if (!last) daala_encode_img_in(dd, &avin->video_img, 0);
+    if (!last) daala_encode_img_in(dd, avin->video_img, 0);
   }
   return video_ready;
 }
@@ -580,12 +608,37 @@ int main(int argc, char **argv) {
       default: usage(); break;
     }
   }
+  avin.video_img = &avin.video_buf1;
+
   /*Assume anything following the options must be a file name.*/
   for (; optind < argc; optind++) id_file(&avin, argv[optind]);
   if (!avin.has_video) {
     fprintf(stderr, "No video files submitted for compression.\n");
     exit(1);
   }
+
+  /* Alloc space for storing the previous frame */
+  avin.video_buf2 = avin.video_buf1;
+  for(pli=0;pli<avin.video_buf2.nplanes;pli++){
+    od_img_plane *iplane;
+    int size;
+    iplane=avin.video_buf2.planes+pli;
+    size=iplane->ystride*((avin.video_pic_h+(1<<iplane->ydec)-1)>>iplane->ydec);
+    iplane->data=_ogg_malloc(size);
+    memset(iplane->data, pli ? 128 : 0, size);
+  }
+
+  /* Alloc space for storing a temporally filtered frame */
+  avin.video_filt = avin.video_buf1;
+  for(pli=0;pli<avin.video_filt.nplanes;pli++){
+    od_img_plane *iplane;
+    int size;
+    iplane=avin.video_filt.planes+pli;
+    size=iplane->ystride*((avin.video_pic_h+(1<<iplane->ydec)-1)>>iplane->ydec);
+    iplane->data=_ogg_malloc(size);
+    memset(iplane->data, pli ? 128 : 0, size);
+  }
+
   if (!fixedserial) {
     srand(time(NULL));
     serial = rand();
@@ -704,8 +757,9 @@ int main(int argc, char **argv) {
   ogg_stream_clear(&vo);
   daala_encode_free(dd);
   daala_comment_clear(&dc);
-  for (pli = 0; pli < avin.video_img.nplanes; pli++) {
-    _ogg_free(avin.video_img.planes[pli].data);
+  for(pli = 0; pli < avin.video_buf1.nplanes; pli++) {
+    _ogg_free(avin.video_buf1.planes[pli].data);
+    _ogg_free(avin.video_buf2.planes[pli].data);
   }
   if (outfile != NULL && outfile != stdout) fclose(outfile);
   fprintf(stderr, "\r    \ndone.\n\r");
