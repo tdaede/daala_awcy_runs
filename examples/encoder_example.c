@@ -270,14 +270,16 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   img->height = avin->video_pic_h;
   for (pli = 0; pli < img->nplanes; pli++) {
     od_img_plane *iplane;
+    int size;
     iplane = img->planes + pli;
     iplane->xdec = avin->video_plane_info[pli].xdec;
     iplane->ydec = avin->video_plane_info[pli].ydec;
     iplane->xstride = 1;
     iplane->ystride = (avin->video_pic_w
      + (1 << iplane->xdec) - 1)  >>  iplane->xdec;
-    iplane->data = (unsigned char *)_ogg_malloc(iplane->ystride*
-     ((avin->video_pic_h + (1 << iplane->ydec) - 1)  >>  iplane->ydec));
+    size = iplane->ystride*((avin->video_pic_h + (1 << iplane->ydec) - 1)  >>  iplane->ydec);
+    iplane->data = (unsigned char *)_ogg_malloc(size);
+    memset(iplane->data, pli ? 128 : 0, size);
   }
 }
 
@@ -353,7 +355,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
         }
       }
       /*Read the frame data.*/
-      img = avin->video_img;
+      img = get_next_video_img(avin);
       for (pli = 0; pli < img->nplanes; pli++) {
         od_img_plane *iplane;
         size_t plane_sz;
@@ -369,7 +371,6 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
           exit(1);
         }
       }
-      get_next_video_img(avin);
 
 #if ENABLE_PREFILTER
       pre_filter(avin->video_filt.planes[0].data,
