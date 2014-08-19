@@ -353,7 +353,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
         }
       }
       /*Read the frame data.*/
-      img = get_next_video_img(avin);
+      img = avin->video_img;
       for (pli = 0; pli < img->nplanes; pli++) {
         od_img_plane *iplane;
         size_t plane_sz;
@@ -369,6 +369,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
           exit(1);
         }
       }
+      get_next_video_img(avin);
 
 #if ENABLE_PREFILTER
       pre_filter(avin->video_filt.planes[0].data,
