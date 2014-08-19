@@ -121,9 +121,9 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
   }
   enc->bs = (BlockSizeComp *)_ogg_malloc(sizeof(*enc->bs));
 
-  for (pli = 0; pli < enc->state.info.nplanes; pli++) {
-    xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-    ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+  for (pli = 0; pli < info->nplanes; pli++) {
+    xdec = info->plane_info[pli].xdec;
+    ydec = info->plane_info[pli].ydec;
     w = enc->state.frame_width >> xdec;
     h = enc->state.frame_height >> ydec;
     enc->ctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->ctmp[pli]));
