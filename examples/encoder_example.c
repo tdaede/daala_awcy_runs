@@ -327,7 +327,7 @@ static od_img *get_next_video_img(av_input *avin) {
 
 int fetch_and_process_video(av_input *avin, ogg_page *page,
  ogg_stream_state *vo, daala_enc_ctx *dd, int video_ready,
- int *limit) {
+ int *limit, int input_q) {
   ogg_packet op;
   while (!video_ready) {
     size_t ret;
@@ -382,7 +382,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
                  avin->video_img_prev->planes[0].data,
                  avin->video_img_prev->planes[1].data,
                  avin->video_img_prev->planes[2].data,
-                 avin->video_pic_w, avin->video_pic_h, 128);
+                 avin->video_pic_w, avin->video_pic_h, input_q);
 #endif
 
       if (limit) {
@@ -723,7 +723,7 @@ int main(int argc, char **argv) {
     double video_time;
     size_t bytes_written;
     video_ready = fetch_and_process_video(&avin, &video_page,
-     &vo, dd, video_ready, limit >= 0 ? &limit : NULL);
+                                          &vo, dd, video_ready, limit >= 0 ? &limit : NULL, input_q);
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
     if (!video_ready) break;
