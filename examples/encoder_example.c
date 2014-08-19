@@ -382,7 +382,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
                  avin->video_img_prev->planes[0].data,
                  avin->video_img_prev->planes[1].data,
                  avin->video_img_prev->planes[2].data,
-                 avin->video_pic_w, avin->video_pic_h, 256);
+                 avin->video_pic_w, avin->video_pic_h, 128);
 #endif
 
       if (limit) {
