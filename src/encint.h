@@ -76,6 +76,8 @@ struct daala_enc_ctx{
   od_coeff *dtmp[OD_NPLANES_MAX];
   od_coeff *mctmp[OD_NPLANES_MAX];
   od_coeff *mdtmp[OD_NPLANES_MAX];
+  od_coeff *ltmp[OD_NPLANES_MAX];
+  od_coeff *lbuf[OD_NPLANES_MAX];
   int packet_state;
   int quantizer[OD_NPLANES_MAX];
   od_mv_est_ctx *mvest;

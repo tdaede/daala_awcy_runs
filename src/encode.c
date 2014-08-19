@@ -130,6 +130,30 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
     enc->dtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->dtmp[pli]));
     enc->mctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->mctmp[pli]));
     enc->mdtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->mdtmp[pli]));
+    /*We predict chroma planes from the luma plane.  Since chroma can be
+      subsampled, we cache subsampled versions of the luma plane in the
+      frequency domain.  We can share buffers with the same subsampling.*/
+    if (pli > 0) {
+      int plj;
+      if (xdec || ydec) {
+        for (plj = 1; plj < pli; plj++) {
+          if (xdec == info->plane_info[plj].xdec
+           && ydec == info->plane_info[plj].ydec) {
+            enc->ltmp[pli] = NULL;
+            enc->lbuf[pli] = enc->ltmp[plj];
+          }
+        }
+        if (plj >= pli) {
+          enc->lbuf[pli] = enc->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h
+           *sizeof(*enc->ltmp[pli]));
+          }
+        }
+        else {
+          enc->ltmp[pli] = NULL;
+          enc->lbuf[pli] = enc->ctmp[pli];
+        }
+      }
+    else enc->lbuf[pli] = enc->ltmp[pli] = NULL;
   }
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
@@ -146,6 +170,7 @@ void daala_encode_free(daala_enc_ctx *enc) {
     }
 #endif
     for (pli = enc->state.info.nplanes; pli-- > 0;) {
+      _ogg_free(enc->ltmp[pli]);
       _ogg_free(enc->dtmp[pli]);
       _ogg_free(enc->ctmp[pli]);
       _ogg_free(enc->mctmp[pli]);
@@ -1251,8 +1276,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   }
   {
-    od_coeff *ltmp[OD_NPLANES_MAX];
-    od_coeff *lbuf[OD_NPLANES_MAX];
     int xdec;
     int ydec;
     int sby;
@@ -1287,30 +1310,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         mbctx.modes[pli] = (signed char *)_ogg_calloc((w >> 2)*(h >> 2),
          sizeof(*mbctx.modes[pli]));
       }
-      /*We predict chroma planes from the luma plane.  Since chroma can be
-        subsampled, we cache subsampled versions of the luma plane in the
-        frequency domain.  We can share buffers with the same subsampling.*/
-      if (pli > 0) {
-        int plj;
-        if (xdec || ydec) {
-          for (plj = 1; plj < pli; plj++) {
-            if (xdec == enc->state.io_imgs[OD_FRAME_INPUT].planes[plj].xdec
-             && ydec == enc->state.io_imgs[OD_FRAME_INPUT].planes[plj].ydec) {
-              ltmp[pli] = NULL;
-              lbuf[pli] = ltmp[plj];
-            }
-          }
-          if (plj >= pli) {
-            lbuf[pli] = ltmp[pli] = (od_coeff *)_ogg_calloc(w*h,
-                    sizeof(*ltmp[pli]));
-          }
-        }
-        else {
-          ltmp[pli] = NULL;
-          lbuf[pli] = enc->ctmp[pli];
-        }
-      }
-      else lbuf[pli] = ltmp[pli] = NULL;
     }
     for (pli = 0; pli < nplanes; pli++) {
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -1360,7 +1359,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           mbctx.d = enc->dtmp;
           mbctx.mc = enc->mctmp[pli];
           mbctx.md = enc->mdtmp[pli];
-          mbctx.l = lbuf[pli];
+          mbctx.l = enc->lbuf[pli];
           xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
@@ -1407,7 +1406,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }
     for (pli = nplanes; pli-- > 0;) {
-      _ogg_free(ltmp[pli]);
       if (pli == 0 || OD_DISABLE_CFL) {
         _ogg_free(mbctx.tf[pli]);
         _ogg_free(mbctx.modes[pli]);
