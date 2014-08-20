@@ -1242,7 +1242,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
          && (vx-2 < 0 || grid[vy][vx-2].valid)
          && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
          && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
           if (mvp->valid) {
             od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
           }
