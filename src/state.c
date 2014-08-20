@@ -240,9 +240,11 @@ int od_state_init(od_state *state, const daala_info *info) {
       }
     else state->lbuf[pli] = state->ltmp[pli] = NULL;
     if (pli == 0 || OD_DISABLE_CFL) {
+      xdec = state->info.plane_info[pli].xdec;
+      ydec = state->info.plane_info[pli].ydec;
       state->tf[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->tf[pli]));
-      state->modes[pli] = (signed char *)_ogg_malloc((w >> 2)*(h >> 2)*
-       sizeof(*state->modes[pli]));
+      state->modes[pli] = (signed char *)_ogg_malloc((w >> (2 + xdec))*
+       (h >> (2 + ydec))*sizeof(*state->modes[pli]));
     }
   }
   state->bsize = (unsigned char *)_ogg_malloc(

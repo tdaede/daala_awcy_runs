@@ -733,10 +733,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       mbctx.tf[pli] = dec->state.tf[pli];
       mbctx.modes[pli] = dec->state.modes[pli];
     }
-    for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
-      xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-      ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-    }
     /*Apply the prefilter to the motion-compensated reference.*/
     if (!mbctx.is_keyframe) {
       for (pli = 0; pli < nplanes; pli++) {
