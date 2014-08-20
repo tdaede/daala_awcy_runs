@@ -179,6 +179,10 @@ static void od_state_opt_vtbl_init(od_state *state) {
 
 int od_state_init(od_state *state, const daala_info *info) {
   int nplanes;
+  int xdec;
+  int ydec;
+  int w;
+  int h;
   int pli;
   /*First validate the parameters.*/
   if (info == NULL) return OD_EFAULT;
@@ -203,6 +207,43 @@ int od_state_init(od_state *state, const daala_info *info) {
   for (pli = 0; pli < nplanes; pli++) {
     state->sb_dc_mem[pli] = (od_coeff*)_ogg_malloc(
      sizeof(state->sb_dc_mem[pli][0])*state->nhsb*state->nvsb);
+    xdec = info->plane_info[pli].xdec;
+    ydec = info->plane_info[pli].ydec;
+    w = state->frame_width >> xdec;
+    h = state->frame_height >> ydec;
+    state->ctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->ctmp[pli]));
+    state->dtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->dtmp[pli]));
+    state->mctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mctmp[pli]));
+    state->mdtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mdtmp[pli]));
+    /*We predict chroma planes from the luma plane.  Since chroma can be
+      subsampled, we cache subsampled versions of the luma plane in the
+      frequency domain.  We can share buffers with the same subsampling.*/
+    if (pli > 0) {
+      int plj;
+      if (xdec || ydec) {
+        for (plj = 1; plj < pli; plj++) {
+          if (xdec == info->plane_info[plj].xdec
+           && ydec == info->plane_info[plj].ydec) {
+            state->ltmp[pli] = NULL;
+            state->lbuf[pli] = state->ltmp[plj];
+          }
+        }
+        if (plj >= pli) {
+          state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h
+           *sizeof(*state->ltmp[pli]));
+          }
+        }
+        else {
+          state->ltmp[pli] = NULL;
+          state->lbuf[pli] = state->ctmp[pli];
+        }
+      }
+    else state->lbuf[pli] = state->ltmp[pli] = NULL;
+    if (pli == 0 || OD_DISABLE_CFL) {
+      state->tf[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->tf[pli]));
+      state->modes[pli] = (signed char *)_ogg_malloc((w >> 2)*(h >> 2)*
+       sizeof(*state->modes[pli]));
+    }
   }
   state->bsize = (unsigned char *)_ogg_malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
@@ -231,6 +272,15 @@ void od_state_clear(od_state *state) {
   state->bsize -= 4*state->bstride + 4;
   for (pli = 0; pli < state->info.nplanes; pli++) {
     _ogg_free(state->sb_dc_mem[pli]);
+    _ogg_free(state->ltmp[pli]);
+    _ogg_free(state->dtmp[pli]);
+    _ogg_free(state->ctmp[pli]);
+    _ogg_free(state->mctmp[pli]);
+    _ogg_free(state->mdtmp[pli]);
+    if (pli == 0 || OD_DISABLE_CFL) {
+      _ogg_free(state->tf[pli]);
+      _ogg_free(state->modes[pli]);
+    }
   }
   _ogg_free(state->bsize);
 }
