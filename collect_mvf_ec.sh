@@ -11,6 +11,5 @@ for video in ${VIDEOS}; do
     for rate in ${RATES}; do
         export OD_EC_ACCT_SUFFIX="${vname}-${rate}"
         examples/encoder_example -v ${rate} ${video} -o /dev/null
-        exit 1
     done
 done

@@ -1203,9 +1203,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_ec_acct_record(&enc->ec.acct, "mvf-l2", mvp->valid, 2,
                             vx > 1 && vy > 1 ? grid[vy - 2][vx - 2].valid : 0,
                             vy > 1 ? grid[vy - 2][vx + 2].valid : 0,
-                            vy > 1 &&
+                            vy > 1 && vx + 2 < nhmvbs &&
                             grid[vy - 2][vx].mv[0] == grid[vy][vx + 2].mv[0] &&
                             grid[vy - 2][vx].mv[1] == grid[vy][vx + 2].mv[1],
+                            vy + 2 < nvmvbs && vx + 2 < nhmvbs &&
                             grid[vy + 2][vx].mv[0] == grid[vy][vx + 2].mv[0] &&
                             grid[vy + 2][vx].mv[1] == grid[vy][vx + 2].mv[1]);
           od_ec_encode_bool_q15(&enc->ec, mvp->valid, 8192);
