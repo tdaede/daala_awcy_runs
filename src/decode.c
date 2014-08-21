@@ -605,9 +605,13 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   for (vy = 2; vy <= nvmvbs; vy += 4) {
     for (vx = 2; vx <= nhmvbs; vx += 4) {
       int p_invalid;
-      p_invalid = od_mv_level1_prob(grid, vx, vy);
+      p_invalid = od_mv_level1_probz(grid, vx, vy);
       mvp = &grid[vy][vx];
-      mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
+      if (p_invalid >= 16384) {
+        mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
+      } else {
+        mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
+      }
       if (mvp->valid) {
         od_decode_mv(dec, mvp, vx, vy, 1, mv_res, width, height);
       }
@@ -621,7 +625,13 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
        && (vx-2 < 0 || grid[vy][vx-2].valid)
        && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
        && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
-        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 13684);
+        int p_invalid;
+        p_invalid = od_mv_level2_probz(grid, vx, vy);
+        if (p_invalid >= 16834) {
+          mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
+        } else {
+          mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
+        }
         if (mvp->valid && od_dec_mv_in_frame(vx, vy, nhmvbs, nvmvbs)) {
           od_decode_mv(dec, mvp, vx, vy, 2, mv_res, width, height);
         }
@@ -669,7 +679,13 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
       }
       else if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
        && grid[vy + 1][vx + 1].valid && grid[vy + 1][vx - 1].valid) {
-        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
+        int p_invalid;
+        p_invalid = od_mv_level3_probz(grid, vx, vy);
+        if (p_invalid >= 16384) {
+          mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
+        } else {
+          mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
+        }
         if (mvp->valid) {
           od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
         }
@@ -682,7 +698,13 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
       mvp = &grid[vy][vx];
       if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
        && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
-        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
+        int p_invalid;
+        p_invalid = od_mv_level4_probz(grid, vx, vy);
+        if (p_invalid >= 16384) {
+          mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
+        } else {
+          mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
+        }
         if (mvp->valid && od_dec_mv_in_frame(vx, vy, nhmvbs, nvmvbs)) {
           od_decode_mv(dec, mvp, vx, vy, 4, mv_res, width, height);
         }

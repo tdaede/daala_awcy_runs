@@ -115,5 +115,7 @@ doc/man
 daala-*/
 *.tar.gz
 out/
-acct.json
-ec-acct.json
+acct*.json
+ec-acct*.json
+TAGS
+secret_key

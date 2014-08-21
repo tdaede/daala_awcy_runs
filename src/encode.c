@@ -1172,13 +1172,28 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         od_encode_mv(enc, mvp, vx, vy, 0, mv_res, width, height);
       }
     }
+/*    od_ec_acct_add_label(&enc->ec.acct, "mvf-l1", 4);
+    od_ec_acct_add_label(&enc->ec.acct, "mvf-l2", 4);
+    od_ec_acct_add_label(&enc->ec.acct, "mvf-l3", 4);
+    od_ec_acct_add_label(&enc->ec.acct, "mvf-l4", 4);*/
     /*Level 1.*/
     for (vy = 2; vy <= nvmvbs; vy += 4) {
       for (vx = 2; vx <= nhmvbs; vx += 4) {
         int p_invalid;
-        p_invalid = od_mv_level1_prob(grid, vx, vy);
+        p_invalid = od_mv_level1_probz(grid, vx, vy);
         mvp = &(grid[vy][vx]);
-        od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+/*        od_ec_acct_record(&enc->ec.acct, "mvf-l1", mvp->valid, 2,
+                          vx > 3 ? grid[vy][vx - 4].valid : 0,
+                          vy > 3 ? grid[vy - 4][vx].valid : 0,
+                          grid[vy - 2][vx + 2].mv[0] == grid[vy + 2][vx + 2].mv[0] &&
+                          grid[vy - 2][vx + 2].mv[1] == grid[vy + 2][vx + 2].mv[1],
+                          grid[vy + 2][vx - 2].mv[0] == grid[vy + 2][vx + 2].mv[0] &&
+                          grid[vy + 2][vx - 2].mv[1] == grid[vy + 2][vx + 2].mv[1]);*/
+        if (p_invalid >= 16384) {
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+        } else {
+          od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
+        }
         if (mvp->valid) {
           od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
         }
@@ -1192,7 +1207,30 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
          && (vx-2 < 0 || grid[vy][vx-2].valid)
          && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
          && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
+          int p_invalid;
+          p_invalid = od_mv_level2_probz(grid, vx, vy);
+          /*od_ec_acct_record(&enc->ec.acct, "mvf-l2", mvp->valid, 2,
+                            vx > 3 ? grid[vy][vx - 4].valid : 0,
+                            vy > 3 ? grid[vy - 4][vx].valid : 0,
+                            vx & 2 ?
+                            (vy > 1 && vx > 1 &&
+                             grid[vy - 2][vx].mv[0] == grid[vy][vx - 2].mv[0] &&
+                             grid[vy - 2][vx].mv[1] == grid[vy][vx - 2].mv[1]) :
+                            (vy > 1 && vx > 1 &&
+                             grid[vy][vx - 2].mv[0] == grid[vy - 2][vx].mv[0] &&
+                             grid[vy][vx - 2].mv[0] == grid[vy - 2][vx].mv[1]),
+                            vx & 2 ?
+                            (vy > 1 &&
+                             grid[vy - 2][vx].mv[0] == grid[vy][vx + 2].mv[0] &&
+                             grid[vy - 2][vx].mv[1] == grid[vy][vx + 2].mv[1]) :
+                            (vx > 1 &&
+                             grid[vy][vx - 2].mv[0] == grid[vy + 2][vx].mv[0] &&
+                             grid[vy][vx - 2].mv[1] == grid[vy + 2][vx].mv[1]));*/
+          if (p_invalid >= 16384) {
+            od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+          } else {
+            od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
+          }
           if (mvp->valid && vx >= 2 && vy >= 2 && vx <= nhmvbs - 2 &&
            vy <= nvmvbs - 2) {
             od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
@@ -1252,7 +1290,22 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         }
         else if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
          && grid[vy + 1][vx + 1].valid && grid[vy + 1][vx - 1].valid) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+          int p_invalid;
+          p_invalid = od_mv_level3_probz(grid, vx, vy);
+          /*od_ec_acct_record(&enc->ec.acct, "mvf-l3", mvp->valid, 2,
+                            vx > 1 ? grid[vy][vx - 2].valid : 0,
+                            vy > 1 ? grid[vy - 2][vx].valid : 0,
+                            vy > 0 &&
+                            grid[vy - 1][vx + 1].mv[0] == grid[vy + 1][vx + 1].mv[0] &&
+                            grid[vy - 1][vx + 1].mv[1] == grid[vy + 1][vx + 1].mv[1],
+                            vx > 0 &&
+                            grid[vy + 1][vx - 1].mv[0] == grid[vy + 1][vx + 1].mv[0] &&
+                            grid[vy + 1][vx - 1].mv[1] == grid[vy + 1][vx + 1].mv[1]);*/
+          if (p_invalid >= 16384) {
+            od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+          } else {
+            od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
+          }
           if (mvp->valid) {
             od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
           }
@@ -1268,7 +1321,30 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         mvp = &grid[vy][vx];
         if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
          && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+          int p_invalid;
+          p_invalid = od_mv_level4_probz(grid, vx, vy);
+          /*od_ec_acct_record(&enc->ec.acct, "mvf-l4", mvp->valid, 2,
+                            vx > 1 ? grid[vy][vx - 2].valid : 0,
+                            vy > 1 ? grid[vy - 2][vx].valid : 0,
+                            (vx & 1) ?
+                            (vy > 0 && vx > 0 &&
+                             grid[vy - 1][vx].mv[0] == grid[vy][vx - 1].mv[0] &&
+                             grid[vy - 1][vx].mv[1] == grid[vy][vx - 1].mv[1]) :
+                            (vy > 0 && vx > 0 &&
+                             grid[vy][vx - 1].mv[0] == grid[vy - 1][vx].mv[0] &&
+                             grid[vy][vx - 1].mv[1] == grid[vy - 1][vx].mv[1]),
+                            (vx & 1) ?
+                            (vy > 0 &&
+                             grid[vy - 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
+                             grid[vy - 1][vx].mv[1] == grid[vy][vx + 1].mv[1]) :
+                            (vx > 1 &&
+                             grid[vy][vx - 1].mv[0] == grid[vy + 1][vx].mv[0] &&
+                             grid[vy][vx - 1].mv[1] == grid[vy + 1][vx].mv[1]));*/
+          if (p_invalid >= 16384) {
+            od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+          } else {
+            od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
+          }
           if (mvp->valid) {
             od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
           }
