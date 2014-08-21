@@ -115,3 +115,5 @@ doc/man
 daala-*/
 *.tar.gz
 out/
+acct.json
+ec-acct.json
