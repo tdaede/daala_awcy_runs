@@ -558,7 +558,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   cgr = pvq_compute_gain(r0, n, q, &gr, beta);
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
-  icgr = floor(.5+cgr);
+  icgr = floor(.75+cgr);
   gain_offset = cgr-icgr;
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
