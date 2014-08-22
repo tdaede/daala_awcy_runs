@@ -1150,6 +1150,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int mv_res;
     od_mv_grid_pt *mvp;
     od_mv_grid_pt **grid;
+    const ogg_uint16_t uniform3[3] = {10922, 21844, 32768};
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
     nhmvbs = (enc->state.nhmbs + 1) << 2;
@@ -1202,18 +1203,54 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }
     /*Level 3.*/
+    /*Level 3 motion vector flags outside the frame are specially coded
+      since more information is known. On the grid edge, an L2 MV will only be
+      valid if a L3 MV is needed outside of the frame. In the middle of the
+      edge, this implies a tristate of the two possible child L3 MVs; they
+      can't both be invalid. At the corner, one of the child L3 vectors will
+      never appear, so an L2 MV directly implies the remaining L3 child.*/
     for (vy = 1; vy <= nvmvbs; vy += 2) {
       for (vx = 1; vx <= nhmvbs; vx += 2) {
         mvp = &grid[vy][vx];
-        if (grid[vy-1][vx-1].valid && grid[vy-1][vx+1].valid
-         && grid[vy+1][vx+1].valid && grid[vy+1][vx-1].valid) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-          if (mvp->valid && vx >= 2 && vy >= 2 && vx <= nhmvbs - 2 &&
-           vy <= nvmvbs - 2) {
+        if (vy < 2 || vy > nvmvbs - 2) {
+          if (vx == 3 && grid[vy == 1 ? vy-1 : vy+1][vx-1].valid) {
             od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
+          } else if (vx == nhmvbs - 3 && grid[vy == 1 ? vy-1 : vy+1][vx+1].valid) {
+            od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
+          } else if (vx > 3 || vx < nhmvbs - 3) {
+            if ((vx >> 1) % 2 == 0 && grid[vx == 3 ? vy-1 : vy+1][vx+1].valid) {
+              /*0 = both valid, 1 = only this one, 2 = other one valid*/
+              int s;
+              s = mvp->valid && grid[vy][vx+2].valid ? 0 : mvp->valid
+               + (grid[vy][vx+2].valid << 1);
+              od_ec_encode_cdf(&enc->ec, s, uniform3, 3);
+              if (mvp->valid) {
+                od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
+              }
+              if (grid[vy][vx+2].valid) {
+                od_encode_mv(enc, &grid[vy][vx+2], vx+2, vy, 3, mv_res, width,
+                 height);
+              }
+            }
           }
-          else {
-            OD_ASSERT(!mvp->valid);
+        } else if (vx == 1 || vx == nhmvbs - 1) {
+          if ((vy >> 1) % 2 == 0 && grid[vy+1][vx == 1 ? vx-1 : vx+1].valid) {
+            int s;
+            s = mvp->valid && grid[vy+2][vx].valid ? 0 : mvp->valid
+             + (grid[vy+2][vx].valid << 1);
+            od_ec_encode_cdf(&enc->ec, s, uniform3, 3);
+            if (mvp->valid) {
+              od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
+            }
+            if (grid[vy+2][vx].valid) {
+              od_encode_mv(enc, &grid[vy+2][vx], vx, vy+2, 3, mv_res, width,
+               height);
+            }
+          }
+        } else {
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+          if (mvp->valid) {
+            od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
           }
         }
       }

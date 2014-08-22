@@ -579,7 +579,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   int mv_res;
   od_mv_grid_pt *mvp;
   od_mv_grid_pt **grid;
-  OD_ASSERT(dec->state.ref_imgi[OD_FRAME_PREV] >= 0);
+  const ogg_uint16_t uniform3[3] = {10922, 21844, 32768};  OD_ASSERT(dec->state.ref_imgi[OD_FRAME_PREV] >= 0);
   od_state_mvs_clear(&dec->state);
   nhmvbs = (dec->state.nhmbs + 1) << 2;
   nvmvbs = (dec->state.nvmbs + 1) << 2;
@@ -629,16 +629,53 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
     }
   }
   /*Level 3.*/
+  /*Level 3 motion vector flags are complicated on the edges. See the comments
+    in encode.c for why this code is complicated.*/
   for (vy = 1; vy <= nvmvbs; vy += 2) {
     for (vx = 1; vx <= nhmvbs; vx += 2) {
       mvp = &grid[vy][vx];
-      if (grid[vy-1][vx-1].valid && grid[vy-1][vx+1].valid
-       && grid[vy+1][vx+1].valid && grid[vy+1][vx-1].valid) {
+      if (vy < 2 || vy > nvmvbs - 2) {
+        if (vx == 3 && grid[vy == 1 ? vy-1 : vy+1][vx-1].valid) {
+          od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
+        } else if (vx == nhmvbs - 3 && grid[vy == 1 ? vy-1 : vy+1][vx+1].valid) {
+          od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
+        } else if (vx > 3 || vx < nhmvbs - 3) {
+          if ((vx >> 1) % 2 == 0 && grid[vx == 3 ? vy-1 : vy+1][vx+1].valid) {
+            /*0 = both valid, 1 = only this one, 2 = other one valid*/
+            int s;
+            s = od_ec_decode_cdf(&dec->ec, uniform3, 3);
+            mvp->valid = s == 0 || s == 1;
+            grid[vy][vx+2].valid = s == 0 || s == 2;
+            if (mvp->valid) {
+              od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
+            }
+            if (grid[vy][vx+2].valid) {
+              od_decode_mv(dec, &grid[vy][vx+2], vx+2, vy, 3, mv_res, width,
+               height);
+            }
+          }
+        }
+      } else if (vx == 1 || vx == nhmvbs - 1) {
+        if ((vy >> 1) % 2 == 0 && grid[vy+1][vx == 1 ? vx-1 : vx+1].valid) {
+          int s;
+          s = od_ec_decode_cdf(&dec->ec, uniform3, 3);
+          mvp->valid = s == 0 || s == 1;
+          grid[vy+2][vx].valid = s == 0 || s == 2;
+          if (mvp->valid) {
+            od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
+          }
+          if (grid[vy+2][vx].valid) {
+            od_decode_mv(dec, &grid[vy+2][vx], vx, vy+2, 3, mv_res, width,
+             height);
+          }
+        }
+      } else {
         mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
         if (mvp->valid) {
           od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
         }
       }
+
     }
   }
   /*Level 4.*/
