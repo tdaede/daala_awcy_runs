@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    normalized by q^2 and lambda does not need the q^2 factor. At high rate,
    this would be log(2)/6, but we're making RDO a bit less aggressive for
    now. */
-# define OD_PVQ_LAMBDA (.07)
+# define OD_PVQ_LAMBDA (.03)
 
 extern const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES];
 extern const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];
