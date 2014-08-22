@@ -543,7 +543,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   double lambda;
   double mask_ratio;
   double skip_dist;
-  lambda = OD_PVQ_LAMBDA;
+  lambda = 0.11;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   OD_ASSERT(n > 1);
