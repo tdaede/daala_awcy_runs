@@ -15,6 +15,7 @@ noinst_HEADERS = \
 	src/block_size_enc.h \
 	src/dct.h \
 	src/decint.h \
+   src/dering.h \
 	src/encint.h \
 	src/entcode.h \
 	src/entdec.h \
@@ -53,6 +54,7 @@ src_libdaalabase_la_SOURCES = \
 	src/adapt.c \
 	src/block_size.c \
 	src/dct.c \
+   src/dering.c \
 	src/entcode.c \
 	src/entdec.c \
 	src/filter.c \

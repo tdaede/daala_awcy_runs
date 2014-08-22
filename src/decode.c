@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <math.h>
 #include <string.h>
 #include "decint.h"
+#include "dering.h"
 #include "generic_code.h"
 #include "laplace_code.h"
 #include "filter.h"
@@ -832,6 +833,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
              + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
           }
         }
+#if  !OD_DISABLE_DERING
+	if(mbctx.is_keyframe)
+	  od_dering(pli, dec->quantizer[pli], data, ystride, h, w);
+#endif
       }
     }
   }

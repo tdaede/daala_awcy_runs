@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <math.h>
 #include <string.h>
 #include "encint.h"
+#include "dering.h"
 #if defined(OD_ENCODER_CHECK)
 # include "decint.h"
 #endif
@@ -1362,6 +1363,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
              + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
           }
         }
+#if !OD_DISABLE_DERING
+	if(mbctx.is_keyframe)
+	  od_dering(pli, enc->quantizer[pli], data, ystride, h, w);
+#endif
       }
     }
   }
