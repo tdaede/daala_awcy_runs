@@ -1179,7 +1179,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         mvp = &(grid[vy][vx]);
         OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
          OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_FLAGS1);
-        od_ec_acct_record(&enc->ec.acct, "mvf-l1", mvp->valid, 2);
+        od_ec_acct_record(&enc->ec.acct, "mvf-l1", mvp->valid, 2,
+                          vx > 3 ? grid[vy][vx - 4].valid : 0,
+                          vy > 3 ? grid[vy - 4][vx].valid : 0,
+                          grid[vy - 2][vx + 2].mv[0] == grid[vy + 2][vx + 2].mv[0] &&
+                          grid[vy - 2][vx + 2].mv[1] == grid[vy + 2][vx + 2].mv[1],
+                          grid[vy + 2][vx - 2].mv[0] == grid[vy + 2][vx + 2].mv[0] &&
+                          grid[vy + 2][vx - 2].mv[1] == grid[vy + 2][vx + 2].mv[1]);
         od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
         OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
          OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS1);
@@ -1201,15 +1207,23 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
            OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_FLAGS2);
           od_ec_acct_record(&enc->ec.acct, "mvf-l2", mvp->valid, 2,
-                            vx > 1 && vy > 1 ? grid[vy - 2][vx - 2].valid : 0,
-                            vy > 1 ? grid[vy - 2][vx + 2].valid : 0,
-                            vy > 1 && vx + 2 < nhmvbs &&
-                            grid[vy - 2][vx].mv[0] == grid[vy][vx + 2].mv[0] &&
-                            grid[vy - 2][vx].mv[1] == grid[vy][vx + 2].mv[1],
-                            vy + 2 < nvmvbs && vx + 2 < nhmvbs &&
-                            grid[vy + 2][vx].mv[0] == grid[vy][vx + 2].mv[0] &&
-                            grid[vy + 2][vx].mv[1] == grid[vy][vx + 2].mv[1]);
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 8192);
+                            vx > 3 ? grid[vy][vx - 4].valid : 0,
+                            vy > 3 ? grid[vy - 4][vx].valid : 0,
+                            vx & 2 ?
+                            (vy > 1 && vx > 1 &&
+                             grid[vy - 2][vx].mv[0] == grid[vy][vx - 2].mv[0] &&
+                             grid[vy - 2][vx].mv[1] == grid[vy][vx - 2].mv[1]) :
+                            (vy > 1 && vx > 1 &&
+                             grid[vy][vx - 2].mv[0] == grid[vy - 2][vx].mv[0] &&
+                             grid[vy][vx - 2].mv[0] == grid[vy - 2][vx].mv[1]),
+                            vx & 2 ?
+                            (vy > 1 &&
+                             grid[vy - 2][vx].mv[0] == grid[vy][vx + 2].mv[0] &&
+                             grid[vy - 2][vx].mv[1] == grid[vy][vx + 2].mv[1]) :
+                            (vx > 1 &&
+                             grid[vy][vx - 2].mv[0] == grid[vy + 2][vx].mv[0] &&
+                             grid[vy][vx - 2].mv[1] == grid[vy + 2][vx].mv[1]));
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
           OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
            OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS2);
           if (mvp->valid) {
@@ -1240,8 +1254,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
                             vx > 0 &&
                             grid[vy + 1][vx - 1].mv[0] == grid[vy + 1][vx + 1].mv[0] &&
                             grid[vy + 1][vx - 1].mv[1] == grid[vy + 1][vx + 1].mv[1]);
-          od_ec_acct_record(&enc->ec.acct, "mvf-l3", mvp->valid, 2);
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 8192);
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
           OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
            OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS3);
           if (mvp->valid) {
@@ -1264,14 +1277,23 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
            OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_FLAGS4);
           od_ec_acct_record(&enc->ec.acct, "mvf-l4", mvp->valid, 2,
-                            vy > 0 && vx > 0 ? grid[vy - 1][vx - 1].valid : 0,
-                            vy > 0 ? grid[vy - 1][vx + 1].valid : 0,
-                            vy > 0 &&
-                            grid[vy - 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
-                            grid[vy - 1][vx].mv[1] == grid[vy][vx + 1].mv[1],
-                            grid[vy + 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
-                            grid[vy + 1][vx].mv[1] == grid[vy][vx + 1].mv[1]);
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 256);
+                            vx > 1 ? grid[vy][vx - 2].valid : 0,
+                            vy > 1 ? grid[vy - 2][vx].valid : 0,
+                            (vx & 1) ?
+                            (vy > 0 && vx > 0 &&
+                             grid[vy - 1][vx].mv[0] == grid[vy][vx - 1].mv[0] &&
+                             grid[vy - 1][vx].mv[1] == grid[vy][vx - 1].mv[1]) :
+                            (vy > 0 && vx > 0 &&
+                             grid[vy][vx - 1].mv[0] == grid[vy - 1][vx].mv[0] &&
+                             grid[vy][vx - 1].mv[1] == grid[vy - 1][vx].mv[1]),
+                            (vx & 1) ?
+                            (vy > 0 &&
+                             grid[vy - 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
+                             grid[vy - 1][vx].mv[1] == grid[vy][vx + 1].mv[1]) :
+                            (vx > 1 &&
+                             grid[vy][vx - 1].mv[0] == grid[vy + 1][vx].mv[0] &&
+                             grid[vy][vx - 1].mv[1] == grid[vy + 1][vx].mv[1]));
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
           OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
            OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS4);
           if (mvp->valid) {

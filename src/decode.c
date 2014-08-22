@@ -612,7 +612,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
        && (vx-2 < 0 || grid[vy][vx-2].valid)
        && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
        && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
-        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 13684);
+        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
         if (mvp->valid) {
           od_decode_mv(dec, mvp, vx, vy, 2, mv_res, width, height);
         }
