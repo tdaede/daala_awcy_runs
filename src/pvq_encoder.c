@@ -211,7 +211,7 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   if (!is_keyframe) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;
-    if (skip_diff < .4/8*tell) {
+    if (1 || skip_diff < .4/8*tell) {
       /* We decide to skip, roll back everything as it was before. */
       od_encode_rollback(enc, &buf);
       od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
