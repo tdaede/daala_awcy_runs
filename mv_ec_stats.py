@@ -26,15 +26,15 @@ for frame in acct_data:
     frame_total = [0, 0, 0, 0, 0]
     frame_valid = [0, 0, 0, 0, 0]
 
-    count0s = [[0, 0, 0],
-               [0, 0, 0],
-               [0, 0, 0]]
-    count1s = [[0, 0, 0],
-               [0, 0, 0],
-               [0, 0, 0]]
-    probs = [[0.0, 0.0, 0.0],
-             [0.0, 0.0, 0.0],
-             [0.0, 0.0, 0.0]]
+    count0s = [[[0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0]] for i in range(5)]
+    count1s = [[[0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0]] for i range(5)]
+    probs = [[[0.0, 0.0, 0.0],
+              [0.0, 0.0, 0.0],
+              [0.0, 0.0, 0.0]] for i in range(5)]
 
     print "frame %d:" % frames
 
@@ -46,8 +46,8 @@ for frame in acct_data:
                 if r[0] == 1:
                     frame_valid[level] += 1
                 if level == 2:
-                    count0s[r[2] + r[3]][r[4] + r[5]] += int(r[0] == 0)
-                    count1s[r[2] + r[3]][r[4] + r[5]] += int(r[0] == 1)
+                    count0s[level][r[2] + r[3]][r[4] + r[5]] += int(r[0] == 0)
+                    count1s[level][r[2] + r[3]][r[4] + r[5]] += int(r[0] == 1)
 
         total[level] += frame_total[level]
         valid[level] += frame_valid[level]
@@ -60,8 +60,8 @@ for frame in acct_data:
         if level == 2:
             for i in range(3):
                 for j in range(3):
-                    probs[i][j] = (2 * float(count1s[i][j]) + 0.5) / (2 * (count0s[i][j] + count1s[i][j])  + 1)
-                    print " %0.1f " % (probs[i][j] * 100.0)
+                    probs[level][i][j] = (2 * float(count1s[level][i][j]) + 0.5) / (2 * (count0s[level][i][j] + count1s[level][i][j])  + 1)
+                    print " %0.1f " % (probs[level][i][j] * 100.0)
             print
 
         if frame.has_key(label):
@@ -74,7 +74,7 @@ for frame in acct_data:
                 total_bytes[level] += est
                 print "  estimated bytes %0.1f" % est
             elif level == 2:
-                est = estimate_bytes_with_2d_probs(count0s, count1s, probs)
+                est = estimate_bytes_with_2d_probs(count0s[level], count1s[level], probs[level])
                 est_static = estimate_bytes_with_static_model(frame[label], [0.25, 0.75])
                 total_bytes[level] += est
                 print "  estimate bytes %0.1f (static %0.1f)" % (est, est_static)
