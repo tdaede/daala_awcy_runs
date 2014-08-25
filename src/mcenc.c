@@ -898,8 +898,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     OD_SORT2I(a[1][1], a[3][1]);
     predx = a[1][0] + a[2][0];
     predy = a[1][1] + a[2][1];
-    candx = OD_CLAMPI(mvxmin, OD_DIV2(predx), mvxmax);
-    candy = OD_CLAMPI(mvymin, OD_DIV2(predy), mvymax);
+    candx = OD_CLAMPI(mvxmin, OD_DIV2_RE(predx), mvxmax);
+    candy = OD_CLAMPI(mvymin, OD_DIV2_RE(predy), mvymax);
   }
   else {
     /*Median-of-3.*/
@@ -949,8 +949,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     }
     t2 = t2 + (t2 >> OD_MC_THRESH2_SCALE_BITS) + est->thresh2_offs[log_mvb_sz];
     /*Constant velocity predictor:*/
-    cands[ncns][0] = OD_CLAMPI(mvxmin, OD_DIV8(mv->mvs[1][ref][0]), mvxmax);
-    cands[ncns][1] = OD_CLAMPI(mvymin, OD_DIV8(mv->mvs[1][ref][1]), mvymax);
+    cands[ncns][0] = OD_CLAMPI(mvxmin, OD_DIV_RE(mv->mvs[1][ref][0], 8), mvxmax);
+    cands[ncns][1] = OD_CLAMPI(mvymin, OD_DIV_RE(mv->mvs[1][ref][1], 8), mvymax);
     ncns++;
     /*Zero predictor.*/
     cands[ncns][0] = 0;
@@ -991,9 +991,11 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       /*Constant velocity predictors from the previous frame:*/
       for (ci = 0; ci < 4; ci++) {
         cands[ci][0] =
-         OD_CLAMPI(mvxmin, OD_DIV8(pneighbors[ci]->mvs[1][ref][0]), mvxmax);
+         OD_CLAMPI(mvxmin, OD_DIV_RE(pneighbors[ci]->mvs[1][ref][0], 8),
+          mvxmax);
         cands[ci][1] =
-         OD_CLAMPI(mvymin, OD_DIV8(pneighbors[ci]->mvs[1][ref][1]), mvymax);
+         OD_CLAMPI(mvymin, OD_DIV_RE(pneighbors[ci]->mvs[1][ref][1], 8),
+          mvymax);
       }
       /*The constant acceleration predictor:*/
       cands[4][0] = OD_CLAMPI(mvxmin,
