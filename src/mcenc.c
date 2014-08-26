@@ -3903,8 +3903,8 @@ void od_mv_est_update_fullpel_mvs(od_mv_est_ctx *est, int ref) {
       mvg = state->mv_grid[vy] + vx;
       if (!mvg->valid) continue;
       mv = est->mvs[vy] + vx;
-      mv->bma_mvs[0][ref][0] = mvg->mv[0] >> 3;
-      mv->bma_mvs[0][ref][1] = mvg->mv[1] >> 3;
+      mv->bma_mvs[0][ref][0] = OD_DIV_RE(mvg->mv[0], 8);
+      mv->bma_mvs[0][ref][1] = OD_DIV_RE(mvg->mv[1], 8);
     }
   }
 }
