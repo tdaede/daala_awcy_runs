@@ -896,8 +896,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     OD_SORT2I(a[0][1], a[2][1]);
     OD_SORT2I(a[1][0], a[3][0]);
     OD_SORT2I(a[1][1], a[3][1]);
-    predx = OD_DIV2(a[1][0]) + OD_DIV2(a[2][0]);
-    predy = OD_DIV2(a[1][1]) + OD_DIV2(a[2][1]);
+    predx = OD_DIV2_RE(a[1][0] + a[2][0]);
+    predy = OD_DIV2_RE(a[1][1] + a[2][1]);
     candx = OD_CLAMPI(mvxmin, 2*OD_DIV2_RE(predx), mvxmax);
     candy = OD_CLAMPI(mvymin, 2*OD_DIV2_RE(predy), mvymax);
     OD_ASSERT((candx & 1) == 0);
@@ -911,10 +911,12 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     OD_SORT2I(a[1][1], a[2][1]);
     OD_SORT2I(a[0][0], a[1][0]);
     OD_SORT2I(a[0][1], a[1][1]);
-    predx = 2*OD_DIV2(a[1][0]);
-    predy = 2*OD_DIV2(a[1][1]);
+    predx = a[1][0];
+    predy = a[1][1];
     candx = OD_CLAMPI(mvxmin, 2*OD_DIV2_RE(predx), mvxmax);
     candy = OD_CLAMPI(mvymin, 2*OD_DIV2_RE(predy), mvymax);
+    OD_ASSERT((candx & 1) == 0);
+    OD_ASSERT((candy & 1) == 0);
   }
   od_mv_est_clear_hit_cache(est);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -955,9 +957,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     t2 = t2 + (t2 >> OD_MC_THRESH2_SCALE_BITS) + est->thresh2_offs[log_mvb_sz];
     /*Constant velocity predictor:*/
     cands[ncns][0] =
-     OD_CLAMPI(mvxmin, mv->bma_mvs[1][ref][0], mvxmax);
+     OD_CLAMPI(mvxmin, 2*OD_DIV2_RE(mv->bma_mvs[1][ref][0]), mvxmax);
     cands[ncns][1] =
-     OD_CLAMPI(mvymin, mv->bma_mvs[1][ref][1], mvymax);
+     OD_CLAMPI(mvymin, 2*OD_DIV2_RE(mv->bma_mvs[1][ref][1]), mvymax);
     ncns++;
     /*Zero predictor.*/
     cands[ncns][0] = 0;
@@ -1003,19 +1005,19 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       /*Constant velocity predictors from the previous frame:*/
       for (ci = 0; ci < 4; ci++) {
         cands[ci][0] =
-         OD_CLAMPI(mvxmin, pneighbors[ci]->bma_mvs[1][ref][0], mvxmax);
+         OD_CLAMPI(mvxmin, 2*OD_DIV2_RE(pneighbors[ci]->bma_mvs[1][ref][0]), mvxmax);
         cands[ci][1] =
-         OD_CLAMPI(mvymin, pneighbors[ci]->bma_mvs[1][ref][1], mvymax);
+         OD_CLAMPI(mvymin, 2*OD_DIV2_RE(pneighbors[ci]->bma_mvs[1][ref][1]), mvymax);
         OD_ASSERT((pneighbors[ci]->bma_mvs[1][ref][0] & 1) == 0);
         OD_ASSERT((pneighbors[ci]->bma_mvs[1][ref][1] & 1) == 0);
       }
       /*The constant acceleration predictor:*/
       cands[4][0] = OD_CLAMPI(mvxmin,
-       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][0]*est->mvapw[ref][0]
-       - mv->bma_mvs[2][ref][0]*est->mvapw[ref][1], 16, 0x8000), mvxmax);
+       2*OD_DIV2_RE(OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][0]*est->mvapw[ref][0]
+       - mv->bma_mvs[2][ref][0]*est->mvapw[ref][1], 16, 0x8000)), mvxmax);
       cands[4][1] = OD_CLAMPI(mvymin,
-       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][1]*est->mvapw[ref][0]
-       - mv->bma_mvs[2][ref][1]*est->mvapw[ref][1], 16, 0x8000), mvymax);
+       2*OD_DIV2_RE(OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][1]*est->mvapw[ref][0]
+       - mv->bma_mvs[2][ref][1]*est->mvapw[ref][1], 16, 0x8000)), mvymax);
       OD_ASSERT((mv->bma_mvs[1][ref][0] & 1) == 0);
       OD_ASSERT((mv->bma_mvs[2][ref][0] & 1) == 0);
       OD_ASSERT((mv->bma_mvs[1][ref][1] & 1) == 0);
@@ -3960,8 +3962,8 @@ void od_mv_est_update_fullpel_mvs(od_mv_est_ctx *est, int ref) {
       mvg = state->mv_grid[vy] + vx;
       if (!mvg->valid) continue;
       mv = est->mvs[vy] + vx;
-      mv->bma_mvs[0][ref][0] = 2*(mvg->mv[0] >> 3);
-      mv->bma_mvs[0][ref][1] = 2*(mvg->mv[1] >> 3);
+      mv->bma_mvs[0][ref][0] = OD_DIV_RE(mvg->mv[0], 4);
+      mv->bma_mvs[0][ref][1] = OD_DIV_RE(mvg->mv[1], 4);
     }
   }
 }
